@@ -5,7 +5,10 @@ import { exec } from "node:child_process";
 
 const PORT = 3000;
 const REDIRECT_URI = `http://localhost:${PORT}/oauth2callback`;
-const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
+const SCOPES = [
+  "https://www.googleapis.com/auth/spreadsheets",
+  "https://www.googleapis.com/auth/drive",
+];
 
 const clientId = process.env.GOOGLE_CLIENT_ID;
 const clientSecret = process.env.GOOGLE_CLIENT_SECRET;

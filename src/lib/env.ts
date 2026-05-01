@@ -35,5 +35,18 @@ export const env = {
     get spreadsheetId() {
       return optional("GOOGLE_SHEETS_SPREADSHEET_ID");
     },
+    get driveFolderId() {
+      return required("GOOGLE_DRIVE_FOLDER_ID");
+    },
+  },
+  webhook: {
+    get secret() {
+      return required("WEBHOOK_SECRET");
+    },
+    get port() {
+      const raw = optional("PORT") ?? optional("WEBHOOK_PORT");
+      const parsed = raw ? Number(raw) : 3000;
+      return Number.isFinite(parsed) ? parsed : 3000;
+    },
   },
 };
