@@ -1,4 +1,4 @@
-import { AbortTaskRunError, logger, schemaTask } from "@trigger.dev/sdk";
+import { AbortTaskRunError, logger, metadata, schemaTask } from "@trigger.dev/sdk";
 import { z } from "zod";
 import { AccountSchema } from "../lib/trust-types.js";
 import { discoverPages } from "../lib/trust-discover.js";
@@ -7,12 +7,43 @@ import { diffAgainstLast } from "../lib/trust-diff.js";
 import { analyzePosture } from "../lib/trust-analyze.js";
 import { postToN8n } from "../lib/trust-n8n.js";
 import { readLatestSnapshot, writeSnapshot } from "../lib/trust-snapshot.js";
+import { updateDiscoveryHints, markTrustCenterUnreachable } from "../lib/trust-seed.js";
 
 const schema = z.object({
   account: AccountSchema,
   run_id: z.string(),
   run_type: z.enum(["weekly", "daily_priority"]),
 });
+
+function host(url: string): string {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function path(url: string): string {
+  try {
+    return new URL(url).pathname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function pickDiscoveredHints(urls: string[]) {
+  const trustCenterUrl = urls.find((url) => host(url).startsWith("trust.")) ??
+    urls.find((url) => path(url).includes("trust"));
+  const securityUrl = urls.find((url) => host(url).startsWith("security.")) ??
+    urls.find((url) => path(url).includes("security"));
+
+  return {
+    trust_center_url: trustCenterUrl,
+    security_url: securityUrl,
+    has_visible_trust_center: Boolean(trustCenterUrl),
+    collector_mode: trustCenterUrl ? ("trust_center_first" as const) : undefined,
+  };
+}
 
 export const trustProcessAccount = schemaTask({
   id: "trust-process-account",
@@ -26,7 +57,14 @@ export const trustProcessAccount = schemaTask({
     // 1. Discover
     const discovered = await logger.trace("discover", async (span) => {
       span.setAttribute("domain", domain);
-      const result = await discoverPages(domain);
+      span.setAttribute("collector_mode", account.collector_mode);
+      span.setAttribute("has_visible_trust_center", account.has_visible_trust_center);
+      const result = await discoverPages(domain, 12, {
+        trust_center_url: account.trust_center_url,
+        security_url: account.security_url,
+        has_visible_trust_center: account.has_visible_trust_center,
+        collector_mode: account.collector_mode,
+      });
       span.setAttribute("url_count", result.ok ? result.data.length : 0);
       return result;
     });
@@ -40,8 +78,17 @@ export const trustProcessAccount = schemaTask({
       return { domain, status: "skipped" as const, qualified: false, reason: "no_pages_found" };
     }
 
+    const hintUpdate = await updateDiscoveryHints(domain, {
+      ...pickDiscoveredHints(discovered.data),
+    });
+    if (!hintUpdate.ok) {
+      logger.warn("discover:hints_update_failed", { domain, error: hintUpdate.error });
+    } else if (hintUpdate.data > 0) {
+      logger.info("discover:hints_updated", { domain, updates: hintUpdate.data });
+    }
+
     // 2. Scrape
-    const scraped = await logger.trace("scrape", async (span) => {
+    let scraped = await logger.trace("scrape", async (span) => {
       span.setAttribute("url_count", discovered.data.length);
       const result = await scrapePages(discovered.data);
       if (result.ok) {
@@ -56,7 +103,26 @@ export const trustProcessAccount = schemaTask({
       throw new Error(scraped.error);
     }
     if (scraped.data.pages.length === 0) {
+      // Retry with just the known hint URLs
+      const hintUrls = [account.trust_center_url, account.security_url].filter(Boolean) as string[];
+      if (hintUrls.length > 0) {
+        logger.info("scrape:retry_hints", { domain, urls: hintUrls });
+        const retried = await scrapePages(hintUrls, { waitFor: 5000 });
+        if (retried.ok && retried.data.pages.length > 0) {
+          scraped = { ok: true, data: retried.data };
+        }
+      }
+    }
+
+    if (scraped.data.pages.length === 0) {
       logger.info("scrape:all_failed", { domain, failed: scraped.data.failed });
+      metadata.set("scrape_failed", true);
+      const unreachable = await markTrustCenterUnreachable(domain);
+      if (!unreachable.ok) {
+        logger.warn("scrape:mark_unreachable_failed", { domain, error: unreachable.error });
+      } else {
+        logger.info("scrape:marked_unreachable", { domain });
+      }
       return { domain, status: "skipped" as const, qualified: false, reason: "all_scrapes_failed" };
     }
 
@@ -92,6 +158,18 @@ export const trustProcessAccount = schemaTask({
       }
       logger.error("analyze:failed", { domain, error: analysis.error });
       throw new Error(analysis.error);
+    }
+
+    // 5a. Write frameworks back to Accounts sheet
+    if (analysis.data.frameworks_present.length > 0) {
+      const fwUpdate = await updateDiscoveryHints(domain, {
+        frameworks_present: analysis.data.frameworks_present,
+      });
+      if (!fwUpdate.ok) {
+        logger.warn("frameworks:update_failed", { domain, error: fwUpdate.error });
+      } else if (fwUpdate.data > 0) {
+        logger.info("frameworks:updated", { domain, added: analysis.data.frameworks_present });
+      }
     }
 
     // 5. Persist snapshot
@@ -141,4 +219,7 @@ export const trustProcessAccount = schemaTask({
   },
 });
 
-export type ProcessAccountResult = Awaited<ReturnType<typeof trustProcessAccount.run>>;
+export type ProcessAccountResult =
+  | { domain: string; status: "ok"; qualified: boolean }
+  | { domain: string; status: "skipped"; qualified: boolean; reason: string }
+  | { domain: string; status: "failed"; qualified: false; error?: string };

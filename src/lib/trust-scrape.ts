@@ -11,6 +11,7 @@ type FirecrawlScrapeResponse = {
 
 export async function scrapePages(
   urls: string[],
+  options?: { waitFor?: number },
 ): Promise<Result<{ pages: ScrapedPage[]; failed: { url: string; error: string }[] }>> {
   try {
     const pages: ScrapedPage[] = [];
@@ -24,7 +25,7 @@ export async function scrapePages(
             Authorization: `Bearer ${env.firecrawl.apiKey}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true }),
+          body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true, ...(options?.waitFor ? { waitFor: options.waitFor } : {}) }),
         });
         if (!res.ok) {
           failed.push({ url, error: `http_${res.status}` });

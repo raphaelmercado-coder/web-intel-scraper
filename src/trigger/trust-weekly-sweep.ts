@@ -19,16 +19,21 @@ export const trustWeeklySweep = schedules.task({
     }
     logger.info("weekly-sweep:seed_loaded", { count: seed.data.length });
 
-    const handles = await trustProcessAccount.batchTriggerAndWait(
-      seed.data.map((account) => ({
-        payload: { account, run_id, run_type: "weekly" as const },
-        options: { concurrencyKey: account.domain },
-      })),
-    );
-
-    const results: ProcessAccountResult[] = handles.runs.map((r) =>
-      r.ok ? r.output : { domain: "unknown", status: "failed" as const, qualified: false },
-    );
+    const BATCH_SIZE = 5;
+    const results: ProcessAccountResult[] = [];
+    for (let i = 0; i < seed.data.length; i += BATCH_SIZE) {
+      const batch = seed.data.slice(i, i + BATCH_SIZE);
+      const handles = await trustProcessAccount.batchTriggerAndWait(
+        batch.map((account) => ({
+          payload: { account, run_id, run_type: "weekly" as const },
+          options: { concurrencyKey: account.domain },
+        })),
+      );
+      for (const r of handles.runs) {
+        results.push(r.ok ? r.output : { domain: "unknown", status: "failed" as const, qualified: false });
+      }
+      logger.info("weekly-sweep:batch_done", { batch: Math.floor(i / BATCH_SIZE) + 1, total_batches: Math.ceil(seed.data.length / BATCH_SIZE) });
+    }
 
     const counts = {
       total: results.length,

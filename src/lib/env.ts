@@ -59,7 +59,7 @@ export const env = {
   },
   trust: {
     get accountsRange() {
-      return optional("TRUST_ACCOUNTS_RANGE") ?? "Accounts!A2:H";
+      return optional("TRUST_ACCOUNTS_RANGE") ?? "Accounts!A2:L";
     },
     get openaiModel() {
       return optional("TRUST_OPENAI_MODEL") ?? "gpt-4o-mini";

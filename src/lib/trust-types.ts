@@ -9,6 +9,10 @@ export const AccountSchema = z.object({
   known_frameworks: z.array(z.string()).default([]),
   last_checked_at: z.string().default(""),
   notes: z.string().default(""),
+  trust_center_url: z.string().default(""),
+  security_url: z.string().default(""),
+  has_visible_trust_center: z.boolean().default(false),
+  collector_mode: z.enum(["auto", "trust_center_first", "security_first", "domain_only"]).default("auto"),
 });
 export type Account = z.infer<typeof AccountSchema>;
 
