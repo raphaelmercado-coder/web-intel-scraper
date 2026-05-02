@@ -49,4 +49,20 @@ export const env = {
       return Number.isFinite(parsed) ? parsed : 3000;
     },
   },
+  n8n: {
+    get webhookUrl() {
+      return required("N8N_TRUST_WEBHOOK_URL");
+    },
+    get webhookSecret() {
+      return optional("N8N_TRUST_WEBHOOK_SECRET") ?? "";
+    },
+  },
+  trust: {
+    get accountsRange() {
+      return optional("TRUST_ACCOUNTS_RANGE") ?? "Accounts!A2:H";
+    },
+    get openaiModel() {
+      return optional("TRUST_OPENAI_MODEL") ?? "gpt-4o-mini";
+    },
+  },
 };

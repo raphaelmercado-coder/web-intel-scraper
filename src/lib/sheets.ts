@@ -38,3 +38,27 @@ export async function appendRow(
 
   return { updatedRange: res.data.updates?.updatedRange ?? undefined };
 }
+
+export async function readRange(range: string): Promise<string[][]> {
+  const spreadsheetId = env.google.spreadsheetId;
+  if (!spreadsheetId) throw new SheetsError("GOOGLE_SHEETS_SPREADSHEET_ID is not set");
+  const sheets = getSheetsClient();
+  const res = await sheets.spreadsheets.values.get({ spreadsheetId, range });
+  return (res.data.values ?? []) as string[][];
+}
+
+export async function batchUpdateCells(
+  updates: { range: string; value: string }[],
+): Promise<void> {
+  const spreadsheetId = env.google.spreadsheetId;
+  if (!spreadsheetId) throw new SheetsError("GOOGLE_SHEETS_SPREADSHEET_ID is not set");
+  if (updates.length === 0) return;
+  const sheets = getSheetsClient();
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      valueInputOption: "RAW",
+      data: updates.map((u) => ({ range: u.range, values: [[u.value]] })),
+    },
+  });
+}
