@@ -2,6 +2,8 @@ import { env } from "./env.js";
 import type { Account, Result } from "./trust-types.js";
 
 const KEYWORDS = ["trust", "security", "compliance", "privacy", "legal", "soc2", "iso27001", "gdpr", "hipaa", "status"];
+// Only these are worth a Firecrawl map call — the rest are rarely in URLs
+const MAP_KEYWORDS = ["trust", "security", "compliance", "privacy"];
 const PATHS = ["/trust", "/security", "/compliance", "/privacy", "/legal", "/status"];
 const SUBDOMAINS = ["trust", "security", "status"];
 
@@ -51,7 +53,7 @@ type FirecrawlMapResponse = {
 
 export async function discoverPages(
   domain: string,
-  cap = 12,
+  cap = 6,
   hints?: Partial<DiscoverHints>,
 ): Promise<Result<string[]>> {
   try {
@@ -60,8 +62,11 @@ export async function discoverPages(
       found.set(candidate.url, { hinted: candidate.hinted });
     }
 
-    if (hints?.collector_mode !== "domain_only") {
-      for (const kw of KEYWORDS) {
+    const hasHints = Boolean(hints?.trust_center_url || hints?.security_url);
+    const skipMap = hints?.collector_mode === "domain_only" || hasHints;
+
+    if (!skipMap) {
+      for (const kw of MAP_KEYWORDS) {
         try {
           const res = await fetch("https://api.firecrawl.dev/v1/map", {
             method: "POST",

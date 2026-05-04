@@ -59,7 +59,7 @@ export const trustProcessAccount = schemaTask({
       span.setAttribute("domain", domain);
       span.setAttribute("collector_mode", account.collector_mode);
       span.setAttribute("has_visible_trust_center", account.has_visible_trust_center);
-      const result = await discoverPages(domain, 12, {
+      const result = await discoverPages(domain, 6, {
         trust_center_url: account.trust_center_url,
         security_url: account.security_url,
         has_visible_trust_center: account.has_visible_trust_center,

@@ -38,14 +38,14 @@ export async function loadSeedList(): Promise<Result<Account[]>> {
         domain: String(row[1] ?? "").toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, ""),
         industry: row[2] ?? "",
         segment: row[3] ?? "",
-        priority_tier: (row[4] ?? "medium").toLowerCase(),
+        priority_tier: (row[4] || "medium").toLowerCase(),
         known_frameworks: parseFrameworks(String(row[5] ?? "")),
         last_checked_at: row[6] ?? "",
         notes: row[7] ?? "",
         trust_center_url: row[8] ?? "",
         security_url: row[9] ?? "",
         has_visible_trust_center: parseBoolean(row[10] ?? ""),
-        collector_mode: (row[11] ?? "auto").toLowerCase(),
+        collector_mode: (row[11] || "auto").toLowerCase(),
       });
       if (parsed.success) accounts.push(parsed.data);
     }
