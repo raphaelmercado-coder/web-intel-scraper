@@ -1,12 +1,11 @@
-import { logger, schedules } from "@trigger.dev/sdk";
+import { logger, task } from "@trigger.dev/sdk";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { findMissingFindings, loadSeedList, updateLastCheckedAt } from "../lib/trust-seed.js";
 import { trustProcessAccount, type ProcessAccountResult } from "./trust-process-account.js";
 
-export const trustWeeklySweep = schedules.task({
+export const trustWeeklySweep = task({
   id: "trust-weekly-sweep",
-  cron: { pattern: "0 13 * * 1", timezone: "UTC" },
   maxDuration: 1800,
   run: async (payload, { ctx }) => {
     const run_id = ctx.run.id;

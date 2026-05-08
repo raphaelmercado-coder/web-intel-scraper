@@ -1,4 +1,4 @@
-import { logger, schedules } from "@trigger.dev/sdk";
+import { logger, task } from "@trigger.dev/sdk";
 import {
   FIRECRAWL_RESULT_LIMIT,
   RESEARCH_TOPIC,
@@ -11,23 +11,23 @@ import {
 } from "../lib/synthesize.js";
 import { appendRow } from "../lib/sheets.js";
 
-export const dailyResearch = schedules.task({
+export const dailyResearch = task({
   id: "daily-research",
-  cron: { pattern: "0 13 * * *", timezone: "America/New_York" },
   machine: { preset: "medium-1x" },
   retry: { maxAttempts: 1 },
   run: async (payload, { ctx }) => {
     const startedAt = Date.now();
     const runId = ctx.run.id;
-    const topicOverride = (payload as { topic?: string }).topic;
+    const input = (payload ?? {}) as unknown as { topic?: string; timestamp?: Date | string; timezone?: string };
+    const topicOverride = input.topic;
     const topic = topicOverride ?? RESEARCH_TOPIC;
 
-    const scheduledAt = payload.timestamp ?? new Date();
+    const scheduledAt = input.timestamp ? new Date(input.timestamp) : new Date();
     logger.info("daily-research:start", {
       topic,
       runId,
       scheduledAt: scheduledAt.toISOString(),
-      timezone: payload.timezone ?? "UTC",
+      timezone: input.timezone ?? "UTC",
     });
 
     let hits: FirecrawlHit[] = [];

@@ -1,12 +1,11 @@
-import { logger, schedules } from "@trigger.dev/sdk";
+import { logger, task } from "@trigger.dev/sdk";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { findMissingFindings, loadSeedList, updateLastCheckedAt } from "../lib/trust-seed.js";
 import { trustProcessAccount, type ProcessAccountResult } from "./trust-process-account.js";
 
-export const trustDailyPriority = schedules.task({
+export const trustDailyPriority = task({
   id: "trust-daily-priority",
-  cron: { pattern: "0 13 * * *", timezone: "UTC" },
   maxDuration: 900,
   run: async (payload, { ctx }) => {
     const run_id = ctx.run.id;
