@@ -23,14 +23,7 @@ function buildCandidates(domain: string, hints?: Partial<DiscoverHints>): { url:
   const out = new Set<string>();
   const hinted = new Set<string>();
 
-  const hintUrls =
-    hints?.collector_mode === "security_first"
-      ? [hints.security_url, hints.trust_center_url]
-      : [hints?.trust_center_url, hints?.security_url];
-
-  for (const raw of hintUrls) {
-    const url = normalizeUrl(raw ?? "");
-    if (!url) continue;
+  for (const url of buildHintUrls(hints)) {
     out.add(url);
     hinted.add(url);
   }
@@ -38,6 +31,21 @@ function buildCandidates(domain: string, hints?: Partial<DiscoverHints>): { url:
   for (const p of PATHS) out.add(`https://${domain}${p}`);
   for (const sd of SUBDOMAINS) out.add(`https://${sd}.${domain}`);
   return [...out].map((url) => ({ url, hinted: hinted.has(url) }));
+}
+
+function buildHintUrls(hints?: Partial<DiscoverHints>): string[] {
+  const hintUrls =
+    hints?.collector_mode === "security_first"
+      ? [hints.security_url, hints.trust_center_url]
+      : [hints?.trust_center_url, hints?.security_url];
+
+  const out = new Set<string>();
+  for (const raw of hintUrls) {
+    const url = normalizeUrl(raw ?? "");
+    if (!url) continue;
+    out.add(url);
+  }
+  return [...out];
 }
 
 function looksRelevant(url: string): boolean {
@@ -57,13 +65,17 @@ export async function discoverPages(
   hints?: Partial<DiscoverHints>,
 ): Promise<Result<string[]>> {
   try {
+    const hintedUrls = buildHintUrls(hints);
+    if (hintedUrls.length > 0) {
+      return { ok: true, data: hintedUrls.slice(0, cap) };
+    }
+
     const found = new Map<string, { hinted: boolean }>();
     for (const candidate of buildCandidates(domain, hints)) {
       found.set(candidate.url, { hinted: candidate.hinted });
     }
 
-    const hasHints = Boolean(hints?.trust_center_url || hints?.security_url);
-    const skipMap = hints?.collector_mode === "domain_only" || hasHints;
+    const skipMap = hints?.collector_mode === "domain_only";
 
     if (!skipMap) {
       for (const kw of MAP_KEYWORDS) {
