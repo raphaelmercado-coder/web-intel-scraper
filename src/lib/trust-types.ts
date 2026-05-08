@@ -26,6 +26,10 @@ export const AnalysisSchema = z.object({
   qualified: z.boolean(),
   confidence: z.enum(["low", "medium", "high"]),
   rationale: z.string(),
+  subprocessor_signal: z.enum(["visible", "gated", "mentioned", "not_found"]),
+  subprocessor_notes: z.string(),
+  ai_signal: z.enum(["visible", "mentioned", "not_found"]),
+  ai_notes: z.string(),
 });
 export type Analysis = z.infer<typeof AnalysisSchema>;
 

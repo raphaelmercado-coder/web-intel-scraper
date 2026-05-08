@@ -81,7 +81,7 @@ export async function updateLastCheckedAt(
   }
 }
 
-export async function markTrustCenterUnreachable(domain: string): Promise<Result<number>> {
+export async function markTrustCenterUnreachable(domain: string, reason?: string): Promise<Result<number>> {
   try {
     const range = accountsRange();
     const rows = await readRange(range);
@@ -93,7 +93,12 @@ export async function markTrustCenterUnreachable(domain: string): Promise<Result
     rows.forEach((row, i) => {
       const rowDomain = String(row[1] ?? "").toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
       if (rowDomain !== target) return;
-      updates.push({ range: `${tab}!K${startRow + i}`, value: "false" });
+      const rowNumber = startRow + i;
+      updates.push({ range: `${tab}!K${rowNumber}`, value: "false" });
+      if (reason) {
+        const note = `[scrape_failed @ ${new Date().toISOString().slice(0, 10)}: ${reason}]`;
+        updates.push({ range: `${tab}!H${rowNumber}`, value: note });
+      }
     });
 
     await batchUpdateCells(updates);

@@ -11,6 +11,8 @@ Given an account profile, scraped trust/security/legal pages, and a diff vs. the
 - proposes 1-3 advisory_angles (concrete outreach hooks, not generic)
 - sets qualified=true ONLY if there is a real gap, real change, or strong advisory hook worth surfacing this week
 - assigns confidence based on evidence strength
+- classifies subprocessor disclosure: "visible" if a subprocessor list exists on the page, "gated" if access is required to view it, "mentioned" if referenced without a list, "not_found" if absent; add a short subprocessor_notes string
+- classifies AI security/governance: "visible" if a dedicated AI policy or governance section exists, "mentioned" if AI is referenced incidentally (e.g. training disclaimer), "not_found" if absent; add a short ai_notes string covering any AI policy, model training disclaimers, ISO 42001, NIST AI RMF, SOC 2 AI controls, or human review language found
 Output ONLY valid JSON matching the requested schema.`;
 
 function truncate(s: string, max: number) {
@@ -43,7 +45,7 @@ export async function analyzePosture(
       `Pages:`,
       pageBlobs || "(no pages scraped)",
       "",
-      `Return JSON with keys: frameworks_present (string[]), frameworks_missing (string[]), recent_changes (string[]), advisory_angles (string[], max 5), qualified (boolean), confidence ("low"|"medium"|"high"), rationale (string).`,
+      `Return JSON with keys: frameworks_present (string[]), frameworks_missing (string[]), recent_changes (string[]), advisory_angles (string[], max 5), qualified (boolean), confidence ("low"|"medium"|"high"), rationale (string), subprocessor_signal ("visible"|"gated"|"mentioned"|"not_found"), subprocessor_notes (string), ai_signal ("visible"|"mentioned"|"not_found"), ai_notes (string).`,
     ].join("\n");
 
     const completion = await client.chat.completions.create({

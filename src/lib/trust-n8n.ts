@@ -14,6 +14,10 @@ export type N8nPayload = {
   advisory_angles: string[];
   confidence: Analysis["confidence"];
   rationale: string;
+  subprocessor_signal: "visible" | "gated" | "mentioned" | "not_found";
+  subprocessor_notes: string;
+  ai_signal: "visible" | "mentioned" | "not_found";
+  ai_notes: string;
   checked_at: string;
   source_urls: string[];
 };

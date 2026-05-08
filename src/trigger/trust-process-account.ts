@@ -103,21 +103,10 @@ export const trustProcessAccount = schemaTask({
       throw new Error(scraped.error);
     }
     if (scraped.data.pages.length === 0) {
-      // Retry with just the known hint URLs
-      const hintUrls = [account.trust_center_url, account.security_url].filter(Boolean) as string[];
-      if (hintUrls.length > 0) {
-        logger.info("scrape:retry_hints", { domain, urls: hintUrls });
-        const retried = await scrapePages(hintUrls, { waitFor: 5000 });
-        if (retried.ok && retried.data.pages.length > 0) {
-          scraped = { ok: true, data: retried.data };
-        }
-      }
-    }
-
-    if (scraped.data.pages.length === 0) {
+      const failureReason = scraped.data.failed.map((f) => `${f.url}: ${f.error}`).join("; ");
       logger.info("scrape:all_failed", { domain, failed: scraped.data.failed });
       metadata.set("scrape_failed", true);
-      const unreachable = await markTrustCenterUnreachable(domain);
+      const unreachable = await markTrustCenterUnreachable(domain, failureReason);
       if (!unreachable.ok) {
         logger.warn("scrape:mark_unreachable_failed", { domain, error: unreachable.error });
       } else {
@@ -198,6 +187,10 @@ export const trustProcessAccount = schemaTask({
           advisory_angles: analysis.data.advisory_angles,
           confidence: analysis.data.confidence,
           rationale: analysis.data.rationale,
+          subprocessor_signal: analysis.data.subprocessor_signal,
+          subprocessor_notes: analysis.data.subprocessor_notes,
+          ai_signal: analysis.data.ai_signal,
+          ai_notes: analysis.data.ai_notes,
           checked_at: new Date().toISOString(),
           source_urls: scraped.data.pages.map((p) => p.url),
         });

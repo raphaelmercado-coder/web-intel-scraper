@@ -37,7 +37,7 @@ The main per-account orchestrator. This is where the step order lives. If the pi
 
 ### `src/lib/trust-seed.ts`
 
-Google Sheets account source of truth. Reads the Accounts tab and writes back discovery hints, frameworks, `last_checked_at`, and unreachable trust-center flags.
+Google Sheets account source of truth. Reads the Accounts tab and writes back discovery hints, frameworks, `last_checked_at`, unreachable trust-center flags, and scrape failure reasons (col H `notes`).
 
 ### `src/lib/trust-discover.ts`
 
@@ -51,7 +51,7 @@ Current policy:
 
 ### `src/lib/trust-scrape.ts`
 
-Firecrawl `/v1/scrape` calls. Future changes about scrape format, `waitFor`, `onlyMainContent`, retry behavior, or markdown extraction belong here.
+Firecrawl `/v1/scrape` calls. Single attempt per URL — no retry. Future changes about scrape format, `onlyMainContent`, or markdown extraction belong here.
 
 ### `src/lib/trust-diff.ts`
 
@@ -59,7 +59,7 @@ Compares current scraped pages against the previous snapshot by URL/hash and lin
 
 ### `src/lib/trust-analyze.ts`
 
-OpenAI compliance analysis. Owns the analyst prompt, model call, JSON parsing, and `AnalysisSchema` validation.
+OpenAI compliance analysis. Owns the analyst prompt, model call, JSON parsing, and `AnalysisSchema` validation. Extracts 4 extra signals beyond frameworks: `subprocessor_signal`, `subprocessor_notes`, `ai_signal`, `ai_notes`.
 
 ### `src/lib/trust-snapshot.ts`
 
@@ -67,11 +67,25 @@ Local snapshot persistence under `temp/resources/snapshots/<domain>/<YYYY-MM-DD>
 
 ### `src/lib/trust-n8n.ts`
 
-Posts qualified findings to n8n, including optional HMAC signature.
+Posts qualified findings to n8n, including optional HMAC signature. Payload includes all 4 new signal fields (`subprocessor_signal/notes`, `ai_signal/notes`).
 
 ### `src/lib/trust-types.ts`
 
-Shared schemas and types: `Account`, `ScrapedPage`, `Snapshot`, `Analysis`, and `Result`.
+Shared schemas and types: `Account`, `ScrapedPage`, `Snapshot`, `Analysis`, and `Result`. `AnalysisSchema` includes `subprocessor_signal`, `subprocessor_notes`, `ai_signal`, `ai_notes`.
+
+## One-Off Tools
+
+### `tools/add-results-headers.ts`
+
+Writes the 4 new signal column headers (N–Q) to the Findings tab. Run once after adding fields.
+
+### `tools/list-sheet-tabs.ts`
+
+Prints all tab names from the spreadsheet. Useful for verifying tab names before scripting.
+
+### `tools/delete-schedules.ts` / `tools/pause-schedules.ts` / `tools/inspect-schedule.ts`
+
+Trigger.dev schedule management utilities. Run locally as needed.
 
 ## Shared Infrastructure
 
