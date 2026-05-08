@@ -23,21 +23,21 @@ Trigger schedule
 
 ### `src/trigger/trust-weekly-sweep.ts`
 
-Owns the weekly parent run. Loads all accounts, batches them, waits for child runs, writes a summary to `temp/outputs`, and updates `last_checked_at`.
+Owns the weekly parent run. Loads all accounts, batches them, waits for child runs, runs the post-sweep Findings verification, writes a summary to `temp/outputs`, and updates `last_checked_at`. The summary includes `missing_findings: string[]` — qualified domains whose row didn't land in the sheet.
 
 ### `src/trigger/trust-daily-priority.ts`
 
-Uses the same parent/child pattern as weekly sweep, but filters the seed list to `priority_tier === "high"`.
+Uses the same parent/child pattern as weekly sweep, but filters the seed list to `priority_tier === "high"`. Same Findings verification step.
 
 ### `src/trigger/trust-process-account.ts`
 
-The main per-account orchestrator. This is where the step order lives. If the pipeline needs a new phase, this is usually where it gets inserted.
+The main per-account orchestrator. This is where the step order lives. If the pipeline needs a new phase, this is usually where it gets inserted. Has `queue: { name: "trust-account", concurrencyLimit: 5 }` to cap global fan-out so n8n → Sheets appends don't collide on bulk triggers.
 
 ## Trust Pipeline Modules
 
 ### `src/lib/trust-seed.ts`
 
-Google Sheets account source of truth. Reads the Accounts tab and writes back discovery hints, frameworks, `last_checked_at`, unreachable trust-center flags, and scrape failure reasons (col H `notes`).
+Google Sheets account source of truth. Reads the Accounts tab and writes back discovery hints, frameworks, `last_checked_at`, unreachable trust-center flags, and scrape failure reasons (col H `notes`). Also exposes `findMissingFindings(run_id, expectedDomains)` — read-only check against the Findings tab to detect qualified runs whose rows didn't land (used by both sweeps for post-run verification).
 
 ### `src/lib/trust-discover.ts`
 
@@ -78,6 +78,10 @@ Shared schemas and types: `Account`, `ScrapedPage`, `Snapshot`, `Analysis`, and 
 ### `tools/add-results-headers.ts`
 
 Writes the 4 new signal column headers (N–Q) to the Findings tab. Run once after adding fields.
+
+### `tools/check-findings-gap.ts`
+
+Compares Accounts vs Findings by domain and prints accounts missing a findings row. Use after a sweep to manually audit coverage outside of Trigger.dev logs.
 
 ### `tools/list-sheet-tabs.ts`
 

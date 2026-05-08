@@ -108,6 +108,27 @@ export async function markTrustCenterUnreachable(domain: string, reason?: string
   }
 }
 
+export async function findMissingFindings(
+  run_id: string,
+  expectedDomains: string[],
+): Promise<Result<string[]>> {
+  try {
+    const rows = await readRange("Findings!A2:E2000");
+    const landed = new Set(
+      rows
+        .filter((r) => String(r[1] ?? "") === run_id)
+        .map((r) => String(r[4] ?? "").toLowerCase().trim())
+        .filter(Boolean),
+    );
+    const missing = expectedDomains
+      .map((d) => d.toLowerCase().trim())
+      .filter((d) => !landed.has(d));
+    return { ok: true, data: missing };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 export async function updateDiscoveryHints(
   domain: string,
   hints: DiscoveryHintsUpdate,

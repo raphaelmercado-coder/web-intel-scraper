@@ -109,9 +109,9 @@ Payload:
 
 | Task | Description |
 |------|-------------|
-| `trust-weekly-sweep` | Parent — loads all accounts, runs in batches of 5 |
+| `trust-weekly-sweep` | Parent — loads all accounts, runs in batches of 5, verifies Findings after |
 | `trust-daily-priority` | Same but filters to `priority_tier = high` only |
-| `trust-process-account` | Per-account pipeline — discover, scrape, diff, analyze, post |
+| `trust-process-account` | Per-account pipeline — discover, scrape, diff, analyze, post. Capped at 5 concurrent runs globally |
 
 All tasks are one-off. No schedules — trigger manually from the dashboard.
 
@@ -126,6 +126,7 @@ For each account in the Accounts tab:
 3. Diffs against last snapshot to detect changes
 4. Analyzes with OpenAI — extracts frameworks, gaps, subprocessor posture, AI governance language, and advisory angles
 5. Posts qualified findings to n8n → written to Findings tab
+6. After all accounts finish, the parent sweep verifies the Findings tab and logs `VERIFY_MISSING_FINDINGS` if any qualified run didn't land (silent webhook/Sheets failures)
 
 If a scrape fails, col H (notes) is updated with the failure reason and col K (`has_visible_trust_center`) is set to false.
 

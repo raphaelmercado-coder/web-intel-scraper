@@ -1,7 +1,7 @@
 import { logger, schedules } from "@trigger.dev/sdk";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { loadSeedList, updateLastCheckedAt } from "../lib/trust-seed.js";
+import { findMissingFindings, loadSeedList, updateLastCheckedAt } from "../lib/trust-seed.js";
 import { trustProcessAccount, type ProcessAccountResult } from "./trust-process-account.js";
 
 export const trustDailyPriority = schedules.task({
@@ -44,7 +44,24 @@ export const trustDailyPriority = schedules.task({
     };
     logger.info("daily-priority:done", { run_id, ...counts });
 
-    const summary = { run_id, run_type: "daily_priority", started_at: new Date().toISOString(), ...counts, results };
+    let missing_findings: string[] = [];
+    const expectedDomains = results.filter((r) => r.qualified).map((r) => r.domain);
+    if (expectedDomains.length > 0) {
+      await new Promise((res) => setTimeout(res, 10_000));
+      const verify = await findMissingFindings(run_id, expectedDomains);
+      if (!verify.ok) {
+        logger.warn("verify:findings_check_failed", { run_id, error: verify.error });
+      } else {
+        missing_findings = verify.data;
+        if (missing_findings.length > 0) {
+          logger.warn("VERIFY_MISSING_FINDINGS", { run_id, count: missing_findings.length, domains: missing_findings });
+        } else {
+          logger.info("verify:findings_complete", { run_id, qualified: expectedDomains.length });
+        }
+      }
+    }
+
+    const summary = { run_id, run_type: "daily_priority", started_at: new Date().toISOString(), ...counts, missing_findings, results };
     try {
       const outDir = path.resolve(process.cwd(), "temp/outputs");
       await fs.mkdir(outDir, { recursive: true });

@@ -49,6 +49,7 @@ export const trustProcessAccount = schemaTask({
   id: "trust-process-account",
   schema,
   maxDuration: 300,
+  queue: { name: "trust-account", concurrencyLimit: 5 },
   retry: { maxAttempts: 2, factor: 2, minTimeoutInMs: 2000, maxTimeoutInMs: 15000 },
   run: async (payload, { ctx }) => {
     const { account, run_id, run_type } = payload;
