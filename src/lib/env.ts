@@ -24,8 +24,16 @@ export const env = {
   },
   google: {
     get serviceAccountJson() {
+      const inline = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_JSON;
+      if (inline) {
+        try {
+          return JSON.parse(inline);
+        } catch {
+          throw new Error("Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY_JSON as JSON");
+        }
+      }
       const filePath = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE;
-      if (!filePath) throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY_FILE not set");
+      if (!filePath) throw new Error("Set GOOGLE_SERVICE_ACCOUNT_KEY_JSON or GOOGLE_SERVICE_ACCOUNT_KEY_FILE");
       const resolved = resolve(filePath);
       const content = readFileSync(resolved, "utf-8");
       try {
