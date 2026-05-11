@@ -172,8 +172,9 @@ export const trustProcessAccount = schemaTask({
     });
     if (!saved.ok) logger.warn("snapshot:write_failed", { domain, error: saved.error });
 
-    // 6. Post to n8n if qualified
-    if (analysis.data.qualified) {
+    // 6. Post to n8n if qualified or if any frameworks were found
+    const shouldPost = analysis.data.qualified || analysis.data.frameworks_present.length > 0;
+    if (shouldPost) {
       const post = await logger.trace("post_n8n", async (span) => {
         span.setAttribute("domain", domain);
         return postToN8n({

@@ -15,6 +15,13 @@ Given an account profile, scraped trust/security/legal pages, and a diff vs. the
 - classifies AI security/governance: "visible" if a dedicated AI policy or governance section exists, "mentioned" if AI is referenced incidentally (e.g. training disclaimer), "not_found" if absent; add a short ai_notes string covering any AI policy, model training disclaimers, ISO 42001, NIST AI RMF, SOC 2 AI controls, or human review language found
 Output ONLY valid JSON matching the requested schema.`;
 
+function cleanMarkdown(s: string): string {
+  return s
+    .replace(/\[!\[([^\]]*)\]\([^)]*\)\]\([^)]*\)/g, "$1") // [![alt](img)](link) → alt
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")               // ![alt](url) → alt
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1");               // [text](url) → text
+}
+
 function truncate(s: string, max: number) {
   return s.length <= max ? s : s.slice(0, max) + "\n…[truncated]";
 }
@@ -26,7 +33,7 @@ export async function analyzePosture(
 ): Promise<Result<Analysis>> {
   try {
     const client = new OpenAI({ apiKey: env.openai.apiKey });
-    const pageBlobs = pages.map((p) => `### ${p.url}\n${truncate(p.markdown, 4000)}`).join("\n\n");
+    const pageBlobs = pages.map((p) => `### ${p.url}\n${truncate(cleanMarkdown(p.markdown), 4000)}`).join("\n\n");
 
     const userPrompt = [
       `Account: ${account.company_name} (${account.domain})`,

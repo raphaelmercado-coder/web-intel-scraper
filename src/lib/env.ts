@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 function required(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`Missing required env var: ${name}`);
@@ -20,17 +23,16 @@ export const env = {
     },
   },
   google: {
-    get clientId() {
-      return required("GOOGLE_CLIENT_ID");
-    },
-    get clientSecret() {
-      return required("GOOGLE_CLIENT_SECRET");
-    },
-    get refreshToken() {
-      return required("GOOGLE_REFRESH_TOKEN");
-    },
-    get redirectUri() {
-      return optional("GOOGLE_REDIRECT_URI") ?? "http://localhost";
+    get serviceAccountJson() {
+      const filePath = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE;
+      if (!filePath) throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY_FILE not set");
+      const resolved = resolve(filePath);
+      const content = readFileSync(resolved, "utf-8");
+      try {
+        return JSON.parse(content);
+      } catch {
+        throw new Error(`Failed to parse ${resolved} as JSON`);
+      }
     },
     get spreadsheetId() {
       return optional("GOOGLE_SHEETS_SPREADSHEET_ID");

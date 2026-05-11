@@ -1,8 +1,3 @@
-// Requires the Google refresh token to be minted with scope:
-//   https://www.googleapis.com/auth/drive
-// (added alongside the existing spreadsheets scope). The narrower drive.file
-// scope cannot write into pre-existing folders — only files the app created.
-
 import { Readable } from "node:stream";
 import { google } from "googleapis";
 import { env } from "./env.js";
@@ -19,12 +14,10 @@ export class DriveError extends Error {
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 function getDriveClient() {
-  const auth = new google.auth.OAuth2(
-    env.google.clientId,
-    env.google.clientSecret,
-    env.google.redirectUri,
-  );
-  auth.setCredentials({ refresh_token: env.google.refreshToken });
+  const auth = new google.auth.GoogleAuth({
+    credentials: env.google.serviceAccountJson,
+    scopes: ["https://www.googleapis.com/auth/drive"],
+  });
   return google.drive({ version: "v3", auth });
 }
 

@@ -10,12 +10,10 @@ export class SheetsError extends Error {
 }
 
 function getSheetsClient() {
-  const auth = new google.auth.OAuth2(
-    env.google.clientId,
-    env.google.clientSecret,
-    env.google.redirectUri,
-  );
-  auth.setCredentials({ refresh_token: env.google.refreshToken });
+  const auth = new google.auth.GoogleAuth({
+    credentials: env.google.serviceAccountJson,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
   return google.sheets({ version: "v4", auth });
 }
 

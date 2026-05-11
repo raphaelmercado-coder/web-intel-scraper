@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { readRange } from "../src/lib/sheets.js";
 
 const accountsRows = await readRange("Accounts!A2:L100");

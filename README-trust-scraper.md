@@ -1,5 +1,22 @@
 # Trust Center Scraper
 
+## Quick Ops
+
+| I want to... | Do this |
+|---|---|
+| Run full sweep of all accounts | Trigger.dev dashboard → `trust-weekly-sweep` → payload `{ "run_id": "manual-YYYYMMDD" }` |
+| Run high-priority subset only | Trigger.dev dashboard → `trust-daily-priority` → payload `{ "run_id": "manual-YYYYMMDD" }` |
+| Rerun one account | Trigger.dev dashboard → `trust-process-account` → payload from [Running a Single Account](#running-a-single-account) below. If `priority_tier` is blank in the sheet, set it explicitly to `"medium"` in the payload — empty string fails Zod validation. |
+| Rerun N specific accounts | Trigger N runs of `trust-process-account` with the same `run_id` (e.g. `"manual-rerun-001"`) so you can verify them together |
+| Check which accounts are missing Findings | `npx tsx tools/check-findings-gap.ts` |
+| Verify rows landed for a given run_id | Filter Findings tab by col B (`run_id`) |
+
+**Preflight before any run:** confirm n8n workflow `"Trust Center Findings -> Google Sheets"` is **Active** on Railway ([n8n-production-388c2.up.railway.app](https://n8n-production-388c2.up.railway.app)). If rows don't land, that's the first thing to check.
+
+**Auth note:** Google Sheets/Drive auth uses a **service account** (`GOOGLE_SERVICE_ACCOUNT_KEY_FILE` in `.env`), not OAuth. Same on the n8n side. No refresh tokens to renew.
+
+---
+
 ## Setup
 
 ### 1. Install dependencies
@@ -17,11 +34,9 @@ TRIGGER_SECRET_KEY=           # Trigger.dev prod secret key
 OPENAI_API_KEY=               # OpenAI API key
 FIRECRAWL_API_KEY=            # Firecrawl API key
 
-GOOGLE_CLIENT_ID=             # Google OAuth client ID
-GOOGLE_CLIENT_SECRET=         # Google OAuth client secret
-GOOGLE_REDIRECT_URI=          # Google OAuth redirect URI
-GOOGLE_REFRESH_TOKEN=         # Google OAuth refresh token
-GOOGLE_SHEETS_SPREADSHEET_ID= # Sheet ID (from the URL)
+GOOGLE_SERVICE_ACCOUNT_KEY_FILE= # filename of service account JSON key in project root
+GOOGLE_SHEETS_SPREADSHEET_ID=    # Sheet ID (from the URL)
+GOOGLE_DRIVE_FOLDER_ID=          # Drive folder for generated .docx reports
 
 TRUST_ACCOUNTS_RANGE=         # e.g. Accounts!A2:L1000
 TRUST_N8N_WEBHOOK_URL=        # n8n webhook URL
