@@ -1,8 +1,8 @@
 import "dotenv/config";
 import { readRange } from "../src/lib/sheets.js";
 
-const accountsRows = await readRange("Accounts!A2:L100");
-const findingsRows = await readRange("Findings!A2:Q200");
+const accountsRows = await readRange("Accounts!A2:L");
+const findingsRows = await readRange("Findings!A2:Q");
 
 const accounts = accountsRows
   .filter((r) => r[0] && r[1])

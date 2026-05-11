@@ -8,6 +8,7 @@ import { analyzePosture } from "../lib/trust-analyze.js";
 import { postToN8n } from "../lib/trust-n8n.js";
 import { readLatestSnapshot, writeSnapshot } from "../lib/trust-snapshot.js";
 import { updateDiscoveryHints, markTrustCenterUnreachable } from "../lib/trust-seed.js";
+import { TRUST_ACCOUNT_QUEUE_CONCURRENCY } from "../lib/trust-throttle.js";
 
 const schema = z.object({
   account: AccountSchema,
@@ -49,7 +50,7 @@ export const trustProcessAccount = schemaTask({
   id: "trust-process-account",
   schema,
   maxDuration: 300,
-  queue: { name: "trust-account", concurrencyLimit: 5 },
+  queue: { name: "trust-account", concurrencyLimit: TRUST_ACCOUNT_QUEUE_CONCURRENCY },
   retry: { maxAttempts: 2, factor: 2, minTimeoutInMs: 2000, maxTimeoutInMs: 15000 },
   run: async (payload, { ctx }) => {
     const { account, run_id, run_type } = payload;

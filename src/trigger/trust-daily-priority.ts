@@ -2,11 +2,12 @@ import { logger, task } from "@trigger.dev/sdk";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { findMissingFindings, loadSeedList, updateLastCheckedAt } from "../lib/trust-seed.js";
+import { TRUST_SWEEP_BATCH_SIZE, trustThrottleSummary, waitForTrustBatchPace } from "../lib/trust-throttle.js";
 import { trustProcessAccount, type ProcessAccountResult } from "./trust-process-account.js";
 
 export const trustDailyPriority = task({
   id: "trust-daily-priority",
-  maxDuration: 900,
+  maxDuration: 3600,
   run: async (payload, { ctx }) => {
     const run_id = ctx.run.id;
 
@@ -21,18 +22,26 @@ export const trustDailyPriority = task({
       logger.info("DAILY_PRIORITY_NOOP", { run_id });
       return { run_id, run_type: "daily_priority", total: 0, ok: 0, skipped: 0, failed: 0, qualified: 0, results: [] };
     }
-    logger.info("daily-priority:start", { run_id, count: targets.length });
+    logger.info("daily-priority:start", { run_id, count: targets.length, throttle: trustThrottleSummary() });
 
-    const handles = await trustProcessAccount.batchTriggerAndWait(
-      targets.map((account) => ({
-        payload: { account, run_id, run_type: "daily_priority" as const },
-        options: { concurrencyKey: account.domain },
-      })),
-    );
-
-    const results: ProcessAccountResult[] = handles.runs.map((r) =>
-      r.ok ? r.output : { domain: "unknown", status: "failed" as const, qualified: false },
-    );
+    const results: ProcessAccountResult[] = [];
+    for (let i = 0; i < targets.length; i += TRUST_SWEEP_BATCH_SIZE) {
+      const batchStartedAtMs = Date.now();
+      const batch = targets.slice(i, i + TRUST_SWEEP_BATCH_SIZE);
+      const handles = await trustProcessAccount.batchTriggerAndWait(
+        batch.map((account) => ({
+          payload: { account, run_id, run_type: "daily_priority" as const },
+          options: { concurrencyKey: account.domain },
+        })),
+      );
+      for (const r of handles.runs) {
+        results.push(r.ok ? r.output : { domain: "unknown", status: "failed" as const, qualified: false });
+      }
+      logger.info("daily-priority:batch_done", { batch: Math.floor(i / TRUST_SWEEP_BATCH_SIZE) + 1, total_batches: Math.ceil(targets.length / TRUST_SWEEP_BATCH_SIZE) });
+      if (i + TRUST_SWEEP_BATCH_SIZE < targets.length) {
+        await waitForTrustBatchPace(batchStartedAtMs);
+      }
+    }
 
     const counts = {
       total: results.length,

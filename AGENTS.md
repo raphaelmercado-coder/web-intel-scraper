@@ -4,10 +4,10 @@ This repo follows the WAT framework: Workflows, Agents, Tools. Let the agent han
 
 ## Operating Model
 
-- Read the relevant SOP in `workflows/` before running or changing an automation.
+- Read the relevant SOP in `workflows/` before running or changing an automation. Follow the defined tool sequence, expected output shape, and edge-case guidance.
 - Check `src/lib/` before building anything new. Reuse an existing helper when it fits.
 - Keep credentials in `.env` only. Never commit, print, or move secrets into code.
-- If something fails, read the full error, fix the underlying tool/module, verify the fix, then document the lesson in the workflow when workflow edits are allowed.
+- If something fails, read the full error, fix the underlying tool/module, verify the fix, then document the lesson in the workflow when workflow edits are allowed. Verify before re-running anything that costs meaningful time, credits, or external-service usage.
 - Keep workflows current, but never create or overwrite workflow files without explicit permission.
 - Ask one focused clarifying question only when the next step is genuinely ambiguous or risky.
 
@@ -41,6 +41,8 @@ The current Trigger config uses `dirs: ["./src/trigger"]` and a default `maxDura
 - Prefer Zod schemas at task/API boundaries.
 - Return structured objects with stable `status`, counts, IDs, and links rather than loose strings.
 - Keep edits scoped to the workflow, task, or library module involved in the request.
+- Keep `src/lib/` modules deterministic and focused on one concern, such as making an API call, transforming data, reading/writing a file, or querying an external service.
+- Favor consistent, testable, fast helper modules over ad hoc logic inside agents or workflows.
 
 ## Trigger.dev v4 Rules
 

@@ -2,14 +2,15 @@ import { logger, task } from "@trigger.dev/sdk";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { findMissingFindings, loadSeedList, updateLastCheckedAt } from "../lib/trust-seed.js";
+import { TRUST_SWEEP_BATCH_SIZE, trustThrottleSummary, waitForTrustBatchPace } from "../lib/trust-throttle.js";
 import { trustProcessAccount, type ProcessAccountResult } from "./trust-process-account.js";
 
 export const trustWeeklySweep = task({
   id: "trust-weekly-sweep",
-  maxDuration: 3600,
+  maxDuration: 7200,
   run: async (payload, { ctx }) => {
     const run_id = ctx.run.id;
-    logger.info("weekly-sweep:start", { run_id });
+    logger.info("weekly-sweep:start", { run_id, throttle: trustThrottleSummary() });
 
     const seed = await loadSeedList();
     if (!seed.ok) {
@@ -18,10 +19,10 @@ export const trustWeeklySweep = task({
     }
     logger.info("weekly-sweep:seed_loaded", { count: seed.data.length });
 
-    const BATCH_SIZE = 5;
     const results: ProcessAccountResult[] = [];
-    for (let i = 0; i < seed.data.length; i += BATCH_SIZE) {
-      const batch = seed.data.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < seed.data.length; i += TRUST_SWEEP_BATCH_SIZE) {
+      const batchStartedAtMs = Date.now();
+      const batch = seed.data.slice(i, i + TRUST_SWEEP_BATCH_SIZE);
       const handles = await trustProcessAccount.batchTriggerAndWait(
         batch.map((account) => ({
           payload: { account, run_id, run_type: "weekly" as const },
@@ -31,7 +32,10 @@ export const trustWeeklySweep = task({
       for (const r of handles.runs) {
         results.push(r.ok ? r.output : { domain: "unknown", status: "failed" as const, qualified: false });
       }
-      logger.info("weekly-sweep:batch_done", { batch: Math.floor(i / BATCH_SIZE) + 1, total_batches: Math.ceil(seed.data.length / BATCH_SIZE) });
+      logger.info("weekly-sweep:batch_done", { batch: Math.floor(i / TRUST_SWEEP_BATCH_SIZE) + 1, total_batches: Math.ceil(seed.data.length / TRUST_SWEEP_BATCH_SIZE) });
+      if (i + TRUST_SWEEP_BATCH_SIZE < seed.data.length) {
+        await waitForTrustBatchPace(batchStartedAtMs);
+      }
     }
 
     const counts = {

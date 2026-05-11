@@ -81,7 +81,15 @@ Writes the 4 new signal column headers (N–Q) to the Findings tab. Run once aft
 
 ### `tools/check-findings-gap.ts`
 
-Compares Accounts vs Findings by domain and prints accounts missing a findings row. Use after a sweep to manually audit coverage outside of Trigger.dev logs.
+Compares Accounts vs Findings by domain and prints accounts missing a findings row. Use after a sweep to manually audit coverage outside of Trigger.dev logs. Reads full sheet with no row cap (`Accounts!A2:L`, `Findings!A2:Q`).
+
+### `tools/trigger-missing-sweep.ts`
+
+Targeted sweep driver. Reads the Accounts and Findings sheets, filters to only accounts not yet in Findings, and batch-triggers `trust-process-account` for each — 5 per batch with a 30-second delay between batches to avoid Firecrawl rate limits. Use when you want to process only the gap without re-running already-found accounts.
+
+### `tools/trigger-single.ts`
+
+Triggers a single `trust-process-account` run for one domain. Usage: `npx tsx tools/trigger-single.ts <domain>`. Useful for debugging or re-running a specific account.
 
 ### `tools/list-sheet-tabs.ts`
 
@@ -92,6 +100,10 @@ Prints all tab names from the spreadsheet. Useful for verifying tab names before
 Trigger.dev schedule management utilities. Run locally as needed.
 
 ## Shared Infrastructure
+
+### `src/lib/trust-throttle.ts`
+
+Single source of truth for all rate-limit and concurrency config. Exports `FIRECRAWL_MAX_CONCURRENCY` (2), `TRUST_ACCOUNT_QUEUE_CONCURRENCY` (2), `TRUST_SWEEP_BATCH_SIZE` (2), `TRUST_SWEEP_BATCH_INTERVAL_MS` (60s), `waitForTrustBatchPace(batchStartedAtMs)` (waits remaining interval time after a batch), and `trustThrottleSummary()` (logged at sweep start). Change Firecrawl concurrency limits here — everything else inherits automatically.
 
 ### `src/lib/sheets.ts`
 
