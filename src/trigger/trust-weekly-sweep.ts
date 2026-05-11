@@ -6,7 +6,7 @@ import { trustProcessAccount, type ProcessAccountResult } from "./trust-process-
 
 export const trustWeeklySweep = task({
   id: "trust-weekly-sweep",
-  maxDuration: 1800,
+  maxDuration: 3600,
   run: async (payload, { ctx }) => {
     const run_id = ctx.run.id;
     logger.info("weekly-sweep:start", { run_id });
