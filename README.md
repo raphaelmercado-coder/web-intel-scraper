@@ -1,182 +1,109 @@
 # Web Intel Scraper
 
-Async pipeline that discovers, scrapes, and analyzes target company websites — then forwards qualified signals to a webhook for downstream action.
-
-Built on **Trigger.dev**, **Firecrawl**, and **OpenAI**. Account list lives in Google Sheets. Findings write back via n8n.
+Discovers, scrapes, and analyzes target company websites on a schedule — then forwards qualified signals to a webhook.
 
 ---
 
-## Quick Ops
+## What You Need
 
-| I want to... | Do this |
+| Artifact | Where |
 |---|---|
-| Run full sweep of all accounts | Trigger.dev dashboard → `trust-weekly-sweep` → Trigger task |
-| Run high-priority accounts only | Trigger.dev dashboard → `trust-daily-priority` → Trigger task |
-| Rerun one account | `npx tsx tools/trigger-single.ts <domain>` |
-| Check which accounts are missing output rows | `npx tsx tools/check-findings-gap.ts` |
-| Verify rows landed for a given run | Filter output sheet by `run_id` column |
+| **Google Sheet** | Two tabs: `Accounts` (input) and `Findings` (output) — see column layout below |
+| **Trigger.dev project** | [cloud.trigger.dev](https://cloud.trigger.dev) — free tier works |
+| **Firecrawl API key** | [firecrawl.dev](https://firecrawl.dev) |
+| **OpenAI API key** | [platform.openai.com](https://platform.openai.com) |
+| **Google service account** | GCP console → IAM → Service Accounts → JSON key, with Sheets access granted |
+| **Webhook receiver** | n8n, Make, or any HTTP endpoint that writes rows to your Findings sheet |
 
 ---
 
-## Setup
-
-### 1. Install dependencies
+## What To Do
 
 ```bash
+# 1. Install
 npm install
+
+# 2. Fill in credentials
+cp .env.example .env
+# edit .env — see required keys below
+
+# 3. Deploy tasks to Trigger.dev
+npx trigger.dev@latest deploy
+
+# 4. Trigger a sweep
+# → Trigger.dev dashboard → Tasks → trust-weekly-sweep → Trigger task
 ```
 
-### 2. Configure environment variables
+That's it. Accounts are read from the sheet, scraped, analyzed, and qualified findings are POSTed to your webhook.
 
-Copy `.env.example` to `.env` and fill in:
+---
+
+## .env Keys
 
 ```env
-TRIGGER_PROJECT_REF=          # from Trigger.dev dashboard
-TRIGGER_SECRET_KEY=           # Trigger.dev prod secret key
-OPENAI_API_KEY=               # OpenAI API key
-FIRECRAWL_API_KEY=            # Firecrawl API key
+TRIGGER_PROJECT_REF=          # Trigger.dev dashboard → Project Settings
+TRIGGER_SECRET_KEY=           # Trigger.dev → API Keys (prod)
+OPENAI_API_KEY=
+FIRECRAWL_API_KEY=
 
-# Google — service account auth
-GOOGLE_SERVICE_ACCOUNT_KEY_JSON=   # full JSON content of service account key (for cloud)
-GOOGLE_SERVICE_ACCOUNT_KEY_FILE=   # path to JSON key file (for local dev)
-GOOGLE_SHEETS_SPREADSHEET_ID=      # Sheet ID from the URL
+GOOGLE_SERVICE_ACCOUNT_KEY_JSON=   # full JSON (for cloud workers)
+GOOGLE_SERVICE_ACCOUNT_KEY_FILE=   # file path (for local dev)
+GOOGLE_SHEETS_SPREADSHEET_ID=      # from the sheet URL
 
-# Webhook delivery
-N8N_TRUST_WEBHOOK_URL=        # webhook endpoint to receive findings
+N8N_TRUST_WEBHOOK_URL=        # your webhook endpoint
 N8N_TRUST_WEBHOOK_SECRET=     # HMAC secret (optional)
 
-# Pipeline config
-TRUST_ACCOUNTS_RANGE=         # e.g. Accounts!A2:L
-TRUST_OPENAI_MODEL=           # e.g. gpt-4o-mini
-```
-
-### 3. Deploy to Trigger.dev
-
-```bash
-npx trigger.dev@latest deploy
-```
-
-### 4. Make sure your webhook receiver is running
-
-The pipeline POSTs findings to `N8N_TRUST_WEBHOOK_URL` after each qualified account. Your receiver should write those rows to the output sheet.
-
----
-
-## Running a Sweep
-
-### Via Trigger.dev dashboard (recommended)
-
-1. Go to [cloud.trigger.dev](https://cloud.trigger.dev) → your project → **Tasks**
-2. Select `trust-weekly-sweep`
-3. Click **Trigger task** — no payload required
-
-### Via CLI (targeted gap-fill)
-
-```bash
-npx tsx tools/trigger-missing-sweep.ts
-```
-
-Finds accounts not yet in the output sheet and triggers them — 2 per batch, 60s between batches.
-
----
-
-## Running a Single Account
-
-```bash
-npx tsx tools/trigger-single.ts acme.com
-```
-
-Or via Trigger.dev dashboard → `trust-process-account`:
-
-```json
-{
-  "account": {
-    "company_name": "Acme",
-    "domain": "acme.com",
-    "priority_tier": "medium",
-    "industry": "SaaS",
-    "segment": "",
-    "known_frameworks": [],
-    "last_checked_at": "",
-    "notes": "",
-    "trust_center_url": "",
-    "security_url": "",
-    "has_visible_trust_center": false,
-    "collector_mode": "auto"
-  },
-  "run_id": "manual-test",
-  "run_type": "weekly"
-}
+TRUST_ACCOUNTS_RANGE=Accounts!A2:L
+TRUST_OPENAI_MODEL=gpt-4o-mini
 ```
 
 ---
 
 ## Google Sheet Structure
 
-| Tab | Purpose |
-|-----|---------|
-| Accounts | Input — one row per target account |
-| Findings | Output — one row per qualified run |
+**Accounts tab (input) — columns A–L:**
+`company_name, domain, industry, segment, priority_tier, known_frameworks, last_checked_at, notes, trust_center_url, security_url, has_visible_trust_center, collector_mode`
 
-**Accounts columns (A–L):** company_name, domain, industry, segment, priority_tier, known_frameworks, last_checked_at, notes, trust_center_url, security_url, has_visible_trust_center, collector_mode
-
-**Findings columns (A–Q):** checked_at, run_id, run_type, company_name, domain, priority_tier, confidence, frameworks_present, frameworks_missing, recent_changes, advisory_angles, rationale, source_urls, subprocessor_signal, subprocessor_notes, ai_signal, ai_notes
+**Findings tab (output) — columns A–Q:**
+`checked_at, run_id, run_type, company_name, domain, priority_tier, confidence, frameworks_present, frameworks_missing, recent_changes, advisory_angles, rationale, source_urls, subprocessor_signal, subprocessor_notes, ai_signal, ai_notes`
 
 ---
 
 ## Tasks
 
-| Task | Description |
-|------|-------------|
-| `trust-weekly-sweep` | Runs all accounts in batches, verifies output after |
+| Task | What it does |
+|---|---|
+| `trust-weekly-sweep` | Full sweep of every account, batched, with output verification |
 | `trust-daily-priority` | Same, filtered to `priority_tier = high` |
-| `trust-process-account` | Per-account pipeline — discover, scrape, diff, analyze, post |
+| `trust-process-account` | Single-account pipeline — discover → scrape → diff → analyze → post |
+
+---
+
+## Useful Tools
+
+```bash
+npx tsx tools/trigger-single.ts acme.com      # rerun one domain
+npx tsx tools/trigger-missing-sweep.ts        # trigger only accounts not in Findings yet
+npx tsx tools/check-findings-gap.ts           # audit Accounts vs Findings
+```
 
 ---
 
 ## Pipeline (per account)
 
-1. **Discover** — builds candidate URLs from domain heuristics and Firecrawl map search
-2. **Scrape** — fetches page content via Firecrawl (markdown format)
-3. **Diff** — compares against last snapshot to detect changes
-4. **Analyze** — sends content + diff to OpenAI, returns structured signals
-5. **Post** — forwards qualified findings to webhook
-6. **Snapshot** — persists current state for next diff
-
----
-
-## Key Files
-
-```
-src/
-  trigger/
-    trust-weekly-sweep.ts      — batch parent task
-    trust-daily-priority.ts    — high-priority subset
-    trust-process-account.ts   — per-account pipeline
-  lib/
-    trust-seed.ts              — reads/writes Accounts sheet
-    trust-discover.ts          — URL discovery logic
-    trust-scrape.ts            — Firecrawl scrape calls
-    trust-diff.ts              — snapshot diffing
-    trust-analyze.ts           — OpenAI analysis
-    trust-snapshot.ts          — local snapshot storage
-    trust-n8n.ts               — webhook post
-    trust-throttle.ts          — concurrency + rate limit config
-    trust-types.ts             — shared Zod schemas and types
-tools/
-  trigger-missing-sweep.ts     — gap-fill run (missing accounts only)
-  trigger-single.ts            — single domain trigger
-  check-findings-gap.ts        — audit Accounts vs Findings
-codemap.md                     — full module map with change guidance
-```
+1. **Discover** — candidate URLs from domain heuristics + Firecrawl map search
+2. **Scrape** — page content via Firecrawl
+3. **Diff** — compare against last snapshot
+4. **Analyze** — OpenAI returns structured signals
+5. **Post** — webhook if qualified
+6. **Snapshot** — persist for next diff
 
 ---
 
 ## Stack
 
-- **Trigger.dev** — async task queue, batching, retries
-- **Firecrawl** — URL discovery + page scraping
-- **OpenAI** — content analysis and signal extraction
-- **Google Sheets** — account list (input) + findings (output)
-- **n8n** — webhook routing to downstream tools
-- **TypeScript** (Node.js, tsx)
+- **Trigger.dev** — task queue, batching, retries
+- **Firecrawl** — URL discovery + scraping
+- **OpenAI** — analysis + signal extraction
+- **Google Sheets** — account list + findings
+- **n8n** (or any webhook) — downstream routing
