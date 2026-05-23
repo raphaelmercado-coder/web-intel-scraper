@@ -9,7 +9,15 @@ export class SheetsError extends Error {
   }
 }
 
-function getSheetsClient() {
+function getSheetsClientRead() {
+  const auth = new google.auth.GoogleAuth({
+    credentials: env.google.serviceAccountJson,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+  });
+  return google.sheets({ version: "v4", auth });
+}
+
+function getSheetsClientWrite() {
   const auth = new google.auth.GoogleAuth({
     credentials: env.google.serviceAccountJson,
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
@@ -25,7 +33,7 @@ export async function appendRow(
     throw new SheetsError("GOOGLE_SHEETS_SPREADSHEET_ID is not set");
   }
 
-  const sheets = getSheetsClient();
+  const sheets = getSheetsClientWrite();
   const res = await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: `${SHEET_TAB}!A:Z`,
@@ -40,8 +48,8 @@ export async function appendRow(
 export async function readRange(range: string): Promise<string[][]> {
   const spreadsheetId = env.google.spreadsheetId;
   if (!spreadsheetId) throw new SheetsError("GOOGLE_SHEETS_SPREADSHEET_ID is not set");
-  const sheets = getSheetsClient();
-  const res = await sheets.spreadsheets.values.get({ spreadsheetId, range });
+  const sheetsRead = getSheetsClientRead();
+  const res = await sheetsRead.spreadsheets.values.get({ spreadsheetId, range });
   return (res.data.values ?? []) as string[][];
 }
 
@@ -51,7 +59,7 @@ export async function batchUpdateCells(
   const spreadsheetId = env.google.spreadsheetId;
   if (!spreadsheetId) throw new SheetsError("GOOGLE_SHEETS_SPREADSHEET_ID is not set");
   if (updates.length === 0) return;
-  const sheets = getSheetsClient();
+  const sheets = getSheetsClientWrite();
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId,
     requestBody: {

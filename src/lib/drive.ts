@@ -16,7 +16,7 @@ const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingm
 function getDriveClient() {
   const auth = new google.auth.GoogleAuth({
     credentials: env.google.serviceAccountJson,
-    scopes: ["https://www.googleapis.com/auth/drive"],
+    scopes: ["https://www.googleapis.com/auth/drive.file"],
   });
   return google.drive({ version: "v3", auth });
 }
