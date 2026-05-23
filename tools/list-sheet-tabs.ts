@@ -7,7 +7,7 @@ async function main() {
   auth.setCredentials({ refresh_token: env.google.refreshToken });
   const sheets = google.sheets({ version: "v4", auth });
   const res = await sheets.spreadsheets.get({
-    spreadsheetId: "1kQBtfBX5uJ6thm-B1KL271XFa7D2zL1sUnPvXRRAVJA",
+    spreadsheetId: env.google.spreadsheetId ?? "",
     fields: "sheets.properties",
   });
   console.log(res.data.sheets?.map((s) => s.properties?.title));
