@@ -60,12 +60,9 @@ From backend/server code:
 
 ```ts
 import { tasks } from "@trigger.dev/sdk";
-import type { companyReport } from "../trigger/companyReport.js";
+import type { myTask } from "../trigger/myTask.js";
 
-const handle = await tasks.trigger<typeof companyReport>(
-  "generate-company-report",
-  payload,
-);
+const handle = await tasks.trigger<typeof myTask>("my-task-id", payload);
 ```
 
 From inside tasks:
