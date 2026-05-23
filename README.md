@@ -1,6 +1,21 @@
 # Web Intel Scraper
 
-Discovers, scrapes, and analyzes target company websites on a schedule — then forwards qualified signals to a webhook.
+Discovers, scrapes, and analyzes target company websites on a schedule. Forwards qualified signals to a webhook for downstream routing.
+
+**Built for B2B compliance and cybersecurity prospecting.** Surfaces buying-window signals (audit renewals, framework adoption, trust-center updates) that conventional lead lists miss.
+
+> Read the case study: **[raphaelmercado.dev/work/lead-gen](https://raphaelmercado.dev/work/lead-gen)**. Why it runs as expeditions, not a cron, and why the intake is the real product.
+
+---
+
+## Pipeline (per account)
+
+1. **Discover** — candidate URLs from domain heuristics + Firecrawl map search
+2. **Scrape** — page content via Firecrawl
+3. **Diff** — compare against last snapshot
+4. **Analyze** — OpenAI returns structured signals
+5. **Post** — webhook if qualified
+6. **Snapshot** — persist for next diff
 
 ---
 
@@ -8,7 +23,7 @@ Discovers, scrapes, and analyzes target company websites on a schedule — then 
 
 | Artifact | Where |
 |---|---|
-| **Google Sheet** | Two tabs: `Accounts` (input) and `Findings` (output) — see column layout below |
+| **Google Sheet** | Two tabs: `Accounts` (input) and `Findings` (output). Column layout below. |
 | **Trigger.dev project** | [cloud.trigger.dev](https://cloud.trigger.dev) — free tier works |
 | **Firecrawl API key** | [firecrawl.dev](https://firecrawl.dev) |
 | **OpenAI API key** | [platform.openai.com](https://platform.openai.com) |
@@ -34,7 +49,7 @@ npx trigger.dev@latest deploy
 # → Trigger.dev dashboard → Tasks → trust-weekly-sweep → Trigger task
 ```
 
-That's it. Accounts are read from the sheet, scraped, analyzed, and qualified findings are POSTed to your webhook.
+Accounts are read from the sheet, scraped, analyzed, and qualified findings are POSTed to your webhook.
 
 ---
 
@@ -61,10 +76,10 @@ TRUST_OPENAI_MODEL=gpt-4o-mini
 
 ## Google Sheet Structure
 
-**Accounts tab (input) — columns A–L:**
+**Accounts tab (input), columns A–L:**
 `company_name, domain, industry, segment, priority_tier, known_frameworks, last_checked_at, notes, trust_center_url, security_url, has_visible_trust_center, collector_mode`
 
-**Findings tab (output) — columns A–Q:**
+**Findings tab (output), columns A–Q:**
 `checked_at, run_id, run_type, company_name, domain, priority_tier, confidence, frameworks_present, frameworks_missing, recent_changes, advisory_angles, rationale, source_urls, subprocessor_signal, subprocessor_notes, ai_signal, ai_notes`
 
 ---
@@ -75,28 +90,17 @@ TRUST_OPENAI_MODEL=gpt-4o-mini
 |---|---|
 | `trust-weekly-sweep` | Full sweep of every account, batched, with output verification |
 | `trust-daily-priority` | Same, filtered to `priority_tier = high` |
-| `trust-process-account` | Single-account pipeline — discover → scrape → diff → analyze → post |
+| `trust-process-account` | Single-account pipeline: discover → scrape → diff → analyze → post |
 
 ---
 
-## Useful Tools
+## Operator scripts
 
 ```bash
 npx tsx tools/trigger-single.ts acme.com      # rerun one domain
 npx tsx tools/trigger-missing-sweep.ts        # trigger only accounts not in Findings yet
 npx tsx tools/check-findings-gap.ts           # audit Accounts vs Findings
 ```
-
----
-
-## Pipeline (per account)
-
-1. **Discover** — candidate URLs from domain heuristics + Firecrawl map search
-2. **Scrape** — page content via Firecrawl
-3. **Diff** — compare against last snapshot
-4. **Analyze** — OpenAI returns structured signals
-5. **Post** — webhook if qualified
-6. **Snapshot** — persist for next diff
 
 ---
 
@@ -107,3 +111,7 @@ npx tsx tools/check-findings-gap.ts           # audit Accounts vs Findings
 - **OpenAI** — analysis + signal extraction
 - **Google Sheets** — account list + findings
 - **n8n** (or any webhook) — downstream routing
+
+---
+
+*The build was always the easy part. The intake is the work.*
