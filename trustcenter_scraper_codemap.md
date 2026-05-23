@@ -115,7 +115,7 @@ Environment variable access. All API keys and project config are pulled here.
 
 ### `trigger.config.ts`
 
-Trigger.dev project config. Points to project `proj_zhwiojqebgltukvjcsiz` and task directory `./src/trigger`.
+Trigger.dev project config. Points to project `your-project-ref` and task directory `./src/trigger`.
 
 ## Where Changes Should Go
 

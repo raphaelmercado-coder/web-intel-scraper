@@ -28,4 +28,4 @@ const run = await tasks.trigger("trust-process-account", {
 });
 
 console.log(`\nTriggered: ${run.id}`);
-console.log(`Dashboard: https://cloud.trigger.dev/projects/v3/proj_zhwiojqebgltukvjcsiz/runs/${run.id}`);
+console.log(`Dashboard: https://cloud.trigger.dev`);
